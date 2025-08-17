@@ -1,0 +1,700 @@
+{
+  "nbformat": 4,
+  "nbformat_minor": 0,
+  "metadata": {
+    "colab": {
+      "provenance": []
+    },
+    "kernelspec": {
+      "name": "python3",
+      "display_name": "Python 3"
+    },
+    "language_info": {
+      "name": "python"
+    }
+  },
+  "cells": [
+    {
+      "cell_type": "code",
+      "execution_count": 6,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "lYUypTPEBElY",
+        "outputId": "bc863ec8-e546-4901-8f59-fa821807f8b8"
+      },
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Setup complete! Tables available:\n",
+            "shape: (5, 1)\n",
+            "┌──────────┐\n",
+            "│ name     │\n",
+            "│ ---      │\n",
+            "│ str      │\n",
+            "╞══════════╡\n",
+            "│ airlines │\n",
+            "│ airports │\n",
+            "│ flights  │\n",
+            "│ planes   │\n",
+            "│ weather  │\n",
+            "└──────────┘\n"
+          ]
+        },
+        {
+          "output_type": "stream",
+          "name": "stderr",
+          "text": [
+            "/tmp/ipython-input-930455448.py:36: DeprecationWarning: The argument `eager_execution` for `SQLContext.__init__` is deprecated. It has been renamed to `eager`.\n",
+            "  ctx = pl.SQLContext(\n"
+          ]
+        }
+      ],
+      "source": [
+        "import polars as pl\n",
+        "\n",
+        "airlines = pl.read_csv(\n",
+        "    'https://raw.githubusercontent.com/philhetzel/opan5510-class11/refs/heads/main/data/nyc_airlines.csv',\n",
+        "    null_values=[\"NA\", \"\"]\n",
+        ")\n",
+        "airports = pl.read_csv(\n",
+        "    'https://raw.githubusercontent.com/philhetzel/opan5510-class11/refs/heads/main/data/nyc_airports.csv',\n",
+        "    null_values=[\"NA\", \"\"]\n",
+        ")\n",
+        "flights  = pl.read_csv(\n",
+        "    'https://raw.githubusercontent.com/philhetzel/opan5510-class11/refs/heads/main/data/nyc_flights.csv',\n",
+        "    null_values=[\"NA\", \"\"],\n",
+        "    infer_schema_length=10000\n",
+        ")\n",
+        "planes   = pl.read_csv(\n",
+        "    'https://raw.githubusercontent.com/philhetzel/opan5510-class11/refs/heads/main/data/nyc_planes.csv',\n",
+        "    null_values=[\"NA\", \"\"]\n",
+        ")\n",
+        "weather  = pl.read_csv(\n",
+        "    'https://raw.githubusercontent.com/philhetzel/opan5510-class11/refs/heads/main/data/nyc_weather.csv',\n",
+        "    null_values=[\"NA\", \"\"],\n",
+        "    infer_schema_length=10000\n",
+        ")\n",
+        "\n",
+        "flights = flights.with_columns(\n",
+        "    pl.col(\"time_hour\").str.strptime(pl.Datetime, strict=False)\n",
+        ")\n",
+        "weather = weather.with_columns(\n",
+        "    pl.col(\"time_hour\").str.strptime(pl.Datetime, strict=False)\n",
+        ")\n",
+        "\n",
+        "\n",
+        "ctx = pl.SQLContext(\n",
+        "    airlines=airlines,\n",
+        "    airports=airports,\n",
+        "    flights=flights,\n",
+        "    planes=planes,\n",
+        "    weather=weather,\n",
+        "    eager_execution=True\n",
+        ")\n",
+        "\n",
+        "print(\"Setup complete! Tables available:\")\n",
+        "print(ctx.execute(\"SHOW TABLES\"))"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "result = ctx.execute(\"\"\"\n",
+        "    SELECT DISTINCT carrier\n",
+        "    FROM airlines\n",
+        "    ORDER BY carrier\n",
+        "\"\"\")\n",
+        "print(result)"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "T4_iU2emBKU1",
+        "outputId": "d3657cf3-86c5-4275-9a3e-7e599c3baa7d"
+      },
+      "execution_count": 7,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "shape: (16, 1)\n",
+            "┌─────────┐\n",
+            "│ carrier │\n",
+            "│ ---     │\n",
+            "│ str     │\n",
+            "╞═════════╡\n",
+            "│ 9E      │\n",
+            "│ AA      │\n",
+            "│ AS      │\n",
+            "│ B6      │\n",
+            "│ DL      │\n",
+            "│ …       │\n",
+            "│ UA      │\n",
+            "│ US      │\n",
+            "│ VX      │\n",
+            "│ WN      │\n",
+            "│ YV      │\n",
+            "└─────────┘\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "result = ctx.execute(\"\"\"\n",
+        "    SELECT dest, COUNT(*) AS n_flights\n",
+        "    FROM flights\n",
+        "    GROUP BY dest\n",
+        "    ORDER BY n_flights DESC\n",
+        "    LIMIT 10\n",
+        "\"\"\")\n",
+        "\n",
+        "print(result)"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "XapeQjYyCGHH",
+        "outputId": "e3897f37-68a7-468e-fe6e-b4d1e6128313"
+      },
+      "execution_count": 10,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "shape: (10, 2)\n",
+            "┌──────┬───────────┐\n",
+            "│ dest ┆ n_flights │\n",
+            "│ ---  ┆ ---       │\n",
+            "│ str  ┆ u32       │\n",
+            "╞══════╪═══════════╡\n",
+            "│ ORD  ┆ 17283     │\n",
+            "│ ATL  ┆ 17215     │\n",
+            "│ LAX  ┆ 16174     │\n",
+            "│ BOS  ┆ 15508     │\n",
+            "│ MCO  ┆ 14082     │\n",
+            "│ CLT  ┆ 14064     │\n",
+            "│ SFO  ┆ 13331     │\n",
+            "│ FLL  ┆ 12055     │\n",
+            "│ MIA  ┆ 11728     │\n",
+            "│ DCA  ┆ 9705      │\n",
+            "└──────┴───────────┘\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "result = ctx.execute(\"\"\"\n",
+        "    SELECT *\n",
+        "    FROM flights\n",
+        "    WHERE dep_delay > 120\n",
+        "\"\"\")\n",
+        "print(result)"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "7NJAzEYQCKez",
+        "outputId": "a39b0fe8-2dc0-475a-9819-8f273e9bf1c1"
+      },
+      "execution_count": 12,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "shape: (9_723, 19)\n",
+            "┌──────┬───────┬─────┬──────────┬───┬──────────┬──────┬────────┬─────────────────────────┐\n",
+            "│ year ┆ month ┆ day ┆ dep_time ┆ … ┆ distance ┆ hour ┆ minute ┆ time_hour               │\n",
+            "│ ---  ┆ ---   ┆ --- ┆ ---      ┆   ┆ ---      ┆ ---  ┆ ---    ┆ ---                     │\n",
+            "│ i64  ┆ i64   ┆ i64 ┆ i64      ┆   ┆ i64      ┆ i64  ┆ i64    ┆ datetime[μs, UTC]       │\n",
+            "╞══════╪═══════╪═════╪══════════╪═══╪══════════╪══════╪════════╪═════════════════════════╡\n",
+            "│ 2013 ┆ 1     ┆ 1   ┆ 848      ┆ … ┆ 184      ┆ 18   ┆ 35     ┆ 2013-01-01 23:00:00 UTC │\n",
+            "│ 2013 ┆ 1     ┆ 1   ┆ 957      ┆ … ┆ 200      ┆ 7    ┆ 33     ┆ 2013-01-01 12:00:00 UTC │\n",
+            "│ 2013 ┆ 1     ┆ 1   ┆ 1114     ┆ … ┆ 1416     ┆ 9    ┆ 0      ┆ 2013-01-01 14:00:00 UTC │\n",
+            "│ 2013 ┆ 1     ┆ 1   ┆ 1540     ┆ … ┆ 1598     ┆ 13   ┆ 38     ┆ 2013-01-01 18:00:00 UTC │\n",
+            "│ 2013 ┆ 1     ┆ 1   ┆ 1815     ┆ … ┆ 1134     ┆ 13   ┆ 25     ┆ 2013-01-01 18:00:00 UTC │\n",
+            "│ …    ┆ …     ┆ …   ┆ …        ┆ … ┆ …        ┆ …    ┆ …      ┆ …                       │\n",
+            "│ 2013 ┆ 9     ┆ 30  ┆ 1823     ┆ … ┆ 765      ┆ 15   ┆ 45     ┆ 2013-09-30 19:00:00 UTC │\n",
+            "│ 2013 ┆ 9     ┆ 30  ┆ 1951     ┆ … ┆ 708      ┆ 16   ┆ 49     ┆ 2013-09-30 20:00:00 UTC │\n",
+            "│ 2013 ┆ 9     ┆ 30  ┆ 2053     ┆ … ┆ 746      ┆ 18   ┆ 15     ┆ 2013-09-30 22:00:00 UTC │\n",
+            "│ 2013 ┆ 9     ┆ 30  ┆ 2159     ┆ … ┆ 301      ┆ 18   ┆ 45     ┆ 2013-09-30 22:00:00 UTC │\n",
+            "│ 2013 ┆ 9     ┆ 30  ┆ 2235     ┆ … ┆ 944      ┆ 20   ┆ 1      ┆ 2013-10-01 00:00:00 UTC │\n",
+            "└──────┴───────┴─────┴──────────┴───┴──────────┴──────┴────────┴─────────────────────────┘\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "result = ctx.execute(\"\"\"\n",
+        "    SELECT\n",
+        "        origin,\n",
+        "        AVG(dep_delay) AS avg_delay\n",
+        "    FROM flights\n",
+        "    WHERE dep_delay IS NOT NULL\n",
+        "    GROUP BY origin\n",
+        "    ORDER BY avg_delay DESC\n",
+        "\"\"\")\n",
+        "print(result)"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "np_uNTO7CVzA",
+        "outputId": "116bf547-1017-428b-a5e7-1f52aab5131c"
+      },
+      "execution_count": 13,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "shape: (3, 2)\n",
+            "┌────────┬───────────┐\n",
+            "│ origin ┆ avg_delay │\n",
+            "│ ---    ┆ ---       │\n",
+            "│ str    ┆ f64       │\n",
+            "╞════════╪═══════════╡\n",
+            "│ EWR    ┆ 15.107954 │\n",
+            "│ JFK    ┆ 12.112159 │\n",
+            "│ LGA    ┆ 10.346876 │\n",
+            "└────────┴───────────┘\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "result = ctx.execute(\"\"\"\n",
+        "    SELECT\n",
+        "        month,\n",
+        "        COUNT(*) AS n_flights\n",
+        "    FROM flights\n",
+        "    GROUP BY month\n",
+        "    ORDER BY n_flights DESC\n",
+        "    LIMIT 1\n",
+        "\"\"\")\n",
+        "print(result)\n"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "duFSN_l6Cjaa",
+        "outputId": "f9c8b11b-1768-4ee2-b095-5146615ad029"
+      },
+      "execution_count": 14,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "shape: (1, 2)\n",
+            "┌───────┬───────────┐\n",
+            "│ month ┆ n_flights │\n",
+            "│ ---   ┆ ---       │\n",
+            "│ i64   ┆ u32       │\n",
+            "╞═══════╪═══════════╡\n",
+            "│ 7     ┆ 29425     │\n",
+            "└───────┴───────────┘\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "result = ctx.execute(\"\"\"\n",
+        "    SELECT\n",
+        "        carrier,\n",
+        "        AVG(CASE WHEN dep_delay <= 15 THEN 1.0 ELSE 0.0 END) AS on_time_rate\n",
+        "    FROM flights\n",
+        "    WHERE dep_delay IS NOT NULL\n",
+        "    GROUP BY carrier\n",
+        "    ORDER BY on_time_rate DESC\n",
+        "\"\"\")\n",
+        "print(result)"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "qPbl9INKCplb",
+        "outputId": "9328dd48-a9ba-4df8-d12a-00ca372a705d"
+      },
+      "execution_count": 15,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "shape: (16, 2)\n",
+            "┌─────────┬──────────────┐\n",
+            "│ carrier ┆ on_time_rate │\n",
+            "│ ---     ┆ ---          │\n",
+            "│ str     ┆ f64          │\n",
+            "╞═════════╪══════════════╡\n",
+            "│ HA      ┆ 0.929825     │\n",
+            "│ US      ┆ 0.878227     │\n",
+            "│ AS      ┆ 0.867978     │\n",
+            "│ AA      ┆ 0.840713     │\n",
+            "│ DL      ┆ 0.836812     │\n",
+            "│ …       ┆ …            │\n",
+            "│ FL      ┆ 0.733291     │\n",
+            "│ WN      ┆ 0.731027     │\n",
+            "│ F9      ┆ 0.718475     │\n",
+            "│ YV      ┆ 0.713761     │\n",
+            "│ EV      ┆ 0.695381     │\n",
+            "└─────────┴──────────────┘\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "result = ctx.execute(\"\"\"\n",
+        "    SELECT\n",
+        "        f.carrier,\n",
+        "        a.name AS airline,\n",
+        "        f.flight,\n",
+        "        f.origin,\n",
+        "        f.dest\n",
+        "    FROM flights AS f\n",
+        "    JOIN airlines AS a\n",
+        "      ON f.carrier = a.carrier\n",
+        "    LIMIT 20\n",
+        "\"\"\")\n",
+        "print(result)"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "hfgMmdHfCuY-",
+        "outputId": "53327f75-9c22-46a7-ad30-0dc78b360345"
+      },
+      "execution_count": 16,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "shape: (20, 5)\n",
+            "┌─────────┬────────────────────────┬────────┬────────┬──────┐\n",
+            "│ carrier ┆ airline                ┆ flight ┆ origin ┆ dest │\n",
+            "│ ---     ┆ ---                    ┆ ---    ┆ ---    ┆ ---  │\n",
+            "│ str     ┆ str                    ┆ i64    ┆ str    ┆ str  │\n",
+            "╞═════════╪════════════════════════╪════════╪════════╪══════╡\n",
+            "│ UA      ┆ United Air Lines Inc.  ┆ 1545   ┆ EWR    ┆ IAH  │\n",
+            "│ UA      ┆ United Air Lines Inc.  ┆ 1714   ┆ LGA    ┆ IAH  │\n",
+            "│ AA      ┆ American Airlines Inc. ┆ 1141   ┆ JFK    ┆ MIA  │\n",
+            "│ B6      ┆ JetBlue Airways        ┆ 725    ┆ JFK    ┆ BQN  │\n",
+            "│ DL      ┆ Delta Air Lines Inc.   ┆ 461    ┆ LGA    ┆ ATL  │\n",
+            "│ …       ┆ …                      ┆ …      ┆ …      ┆ …    │\n",
+            "│ B6      ┆ JetBlue Airways        ┆ 1806   ┆ JFK    ┆ BOS  │\n",
+            "│ UA      ┆ United Air Lines Inc.  ┆ 1187   ┆ EWR    ┆ LAS  │\n",
+            "│ B6      ┆ JetBlue Airways        ┆ 371    ┆ LGA    ┆ FLL  │\n",
+            "│ MQ      ┆ Envoy Air              ┆ 4650   ┆ LGA    ┆ ATL  │\n",
+            "│ B6      ┆ JetBlue Airways        ┆ 343    ┆ EWR    ┆ PBI  │\n",
+            "└─────────┴────────────────────────┴────────┴────────┴──────┘\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "result = ctx.execute(\"\"\"\n",
+        "    SELECT\n",
+        "        f.carrier,\n",
+        "        AVG(2013 - p.year) AS avg_age\n",
+        "    FROM flights AS f\n",
+        "    JOIN planes  AS p\n",
+        "      ON f.tailnum = p.tailnum\n",
+        "    WHERE p.year IS NOT NULL AND p.year <= 2013\n",
+        "    GROUP BY f.carrier\n",
+        "    ORDER BY avg_age DESC\n",
+        "\"\"\")\n",
+        "print(result)"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "R9oG-y9_Cyw8",
+        "outputId": "c4d27d59-a5e5-48dc-9230-4ea5bdc39bfc"
+      },
+      "execution_count": 17,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "shape: (16, 2)\n",
+            "┌─────────┬───────────┐\n",
+            "│ carrier ┆ avg_age   │\n",
+            "│ ---     ┆ ---       │\n",
+            "│ str     ┆ f64       │\n",
+            "╞═════════╪═══════════╡\n",
+            "│ MQ      ┆ 35.319    │\n",
+            "│ AA      ┆ 25.869426 │\n",
+            "│ DL      ┆ 16.372169 │\n",
+            "│ UA      ┆ 13.207691 │\n",
+            "│ FL      ┆ 11.385829 │\n",
+            "│ …       ┆ …         │\n",
+            "│ B6      ┆ 6.686702  │\n",
+            "│ F9      ┆ 4.87874   │\n",
+            "│ VX      ┆ 4.473643  │\n",
+            "│ AS      ┆ 3.33662   │\n",
+            "│ HA      ┆ 1.548387  │\n",
+            "└─────────┴───────────┘\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "result = ctx.execute(\"\"\"\n",
+        "    SELECT\n",
+        "        f.year, f.month, f.day, f.dep_time,\n",
+        "        f.origin, f.dest, f.dep_delay,\n",
+        "        w.wind_speed, w.precip\n",
+        "    FROM flights AS f\n",
+        "    JOIN weather AS w\n",
+        "      ON f.origin = w.origin\n",
+        "     AND f.time_hour = w.time_hour\n",
+        "    WHERE f.dep_delay > 30\n",
+        "      AND (w.wind_speed > 20 OR w.precip > 0.1)\n",
+        "\"\"\")\n",
+        "print(result)"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "61iJp9CiC1qU",
+        "outputId": "da14ea17-ae62-42ff-e6e1-3bddcb261ab2"
+      },
+      "execution_count": 18,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "shape: (4_938, 9)\n",
+            "┌──────┬───────┬─────┬──────────┬───┬──────┬───────────┬────────────┬────────┐\n",
+            "│ year ┆ month ┆ day ┆ dep_time ┆ … ┆ dest ┆ dep_delay ┆ wind_speed ┆ precip │\n",
+            "│ ---  ┆ ---   ┆ --- ┆ ---      ┆   ┆ ---  ┆ ---       ┆ ---        ┆ ---    │\n",
+            "│ i64  ┆ i64   ┆ i64 ┆ i64      ┆   ┆ str  ┆ i64       ┆ f64        ┆ f64    │\n",
+            "╞══════╪═══════╪═════╪══════════╪═══╪══════╪═══════════╪════════════╪════════╡\n",
+            "│ 2013 ┆ 1     ┆ 1   ┆ 2217     ┆ … ┆ TPA  ┆ 47        ┆ 21.86482   ┆ 0.0    │\n",
+            "│ 2013 ┆ 1     ┆ 1   ┆ 2326     ┆ … ┆ LAS  ┆ 116       ┆ 21.86482   ┆ 0.0    │\n",
+            "│ 2013 ┆ 1     ┆ 4   ┆ 1238     ┆ … ┆ JAX  ┆ 39        ┆ 20.71404   ┆ 0.0    │\n",
+            "│ 2013 ┆ 1     ┆ 4   ┆ 1400     ┆ … ┆ IAD  ┆ 40        ┆ 24.16638   ┆ 0.0    │\n",
+            "│ 2013 ┆ 1     ┆ 4   ┆ 1455     ┆ … ┆ BOS  ┆ 33        ┆ 20.71404   ┆ 0.0    │\n",
+            "│ …    ┆ …     ┆ …   ┆ …        ┆ … ┆ …    ┆ …         ┆ …          ┆ …      │\n",
+            "│ 2013 ┆ 9     ┆ 22  ┆ 1540     ┆ … ┆ ATL  ┆ 41        ┆ 20.71404   ┆ 0.0    │\n",
+            "│ 2013 ┆ 9     ┆ 22  ┆ 1957     ┆ … ┆ PIT  ┆ 97        ┆ 20.71404   ┆ 0.0    │\n",
+            "│ 2013 ┆ 9     ┆ 22  ┆ 2104     ┆ … ┆ PHX  ┆ 42        ┆ 21.86482   ┆ 0.0    │\n",
+            "│ 2013 ┆ 9     ┆ 22  ┆ 2111     ┆ … ┆ LAX  ┆ 46        ┆ 21.86482   ┆ 0.0    │\n",
+            "│ 2013 ┆ 9     ┆ 22  ┆ 2130     ┆ … ┆ BOS  ┆ 45        ┆ 21.86482   ┆ 0.0    │\n",
+            "└──────┴───────┴─────┴──────────┴───┴──────┴───────────┴────────────┴────────┘\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "result = ctx.execute(\"\"\"\n",
+        "    SELECT\n",
+        "        p.manufacturer,\n",
+        "        p.model,\n",
+        "        COUNT(*) AS n_flights\n",
+        "    FROM flights AS f\n",
+        "    JOIN planes  AS p\n",
+        "      ON f.tailnum = p.tailnum\n",
+        "    GROUP BY p.manufacturer, p.model\n",
+        "    ORDER BY n_flights DESC\n",
+        "    LIMIT 10\n",
+        "\"\"\")\n",
+        "print(result)"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "JMNAbryyC4Oa",
+        "outputId": "f65f36af-86ed-4872-91b3-6fd8255bc727"
+      },
+      "execution_count": 19,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "shape: (10, 3)\n",
+            "┌───────────────────────────────┬─────────────────┬───────────┐\n",
+            "│ manufacturer                  ┆ model           ┆ n_flights │\n",
+            "│ ---                           ┆ ---             ┆ ---       │\n",
+            "│ str                           ┆ str             ┆ u32       │\n",
+            "╞═══════════════════════════════╪═════════════════╪═══════════╡\n",
+            "│ AIRBUS                        ┆ A320-232        ┆ 31278     │\n",
+            "│ EMBRAER                       ┆ EMB-145LR       ┆ 28027     │\n",
+            "│ EMBRAER                       ┆ ERJ 190-100 IGW ┆ 23716     │\n",
+            "│ AIRBUS INDUSTRIE              ┆ A320-232        ┆ 14553     │\n",
+            "│ EMBRAER                       ┆ EMB-145XR       ┆ 14051     │\n",
+            "│ BOEING                        ┆ 737-824         ┆ 13809     │\n",
+            "│ BOMBARDIER INC                ┆ CL-600-2D24     ┆ 11807     │\n",
+            "│ BOEING                        ┆ 737-7H4         ┆ 10389     │\n",
+            "│ BOEING                        ┆ 757-222         ┆ 9150      │\n",
+            "│ MCDONNELL DOUGLAS AIRCRAFT CO ┆ MD-88           ┆ 8932      │\n",
+            "└───────────────────────────────┴─────────────────┴───────────┘\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "f-EPhM73C7Wa",
+        "outputId": "18b5060a-a715-4b1a-a360-d01a7a864038"
+      },
+      "source": [
+        "result = ctx.execute(\"\"\"\n",
+        "    SELECT\n",
+        "        origin,\n",
+        "        origin_name,\n",
+        "        dest,\n",
+        "        dest_name,\n",
+        "        COUNT(*) AS n_flights,\n",
+        "        AVG(dep_delay) AS avg_dep_delay,\n",
+        "        100.0 * SUM(CASE WHEN dep_delay > 30 THEN 1 ELSE 0 END) / COUNT(*) AS pct_delay_gt_30\n",
+        "    FROM (\n",
+        "        SELECT\n",
+        "            f.origin,\n",
+        "            ao.name AS origin_name,\n",
+        "            f.dest,\n",
+        "            ad.name AS dest_name,\n",
+        "            f.dep_delay\n",
+        "        FROM flights AS f\n",
+        "        LEFT JOIN airports AS ao\n",
+        "          ON f.origin = ao.faa\n",
+        "        LEFT JOIN airports AS ad\n",
+        "          ON f.dest = ad.faa\n",
+        "    ) AS subquery\n",
+        "    GROUP BY\n",
+        "        origin, origin_name, dest, dest_name\n",
+        "    ORDER BY n_flights DESC\n",
+        "    LIMIT 10\n",
+        "\"\"\")\n",
+        "print(result)"
+      ],
+      "execution_count": 27,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "shape: (10, 7)\n",
+            "┌────────┬──────────────────┬──────┬─────────────────┬───────────┬───────────────┬─────────────────┐\n",
+            "│ origin ┆ origin_name      ┆ dest ┆ dest_name       ┆ n_flights ┆ avg_dep_delay ┆ pct_delay_gt_30 │\n",
+            "│ ---    ┆ ---              ┆ ---  ┆ ---             ┆ ---       ┆ ---           ┆ ---             │\n",
+            "│ str    ┆ str              ┆ str  ┆ str             ┆ u32       ┆ f64           ┆ f64             │\n",
+            "╞════════╪══════════════════╪══════╪═════════════════╪═══════════╪═══════════════╪═════════════════╡\n",
+            "│ JFK    ┆ John F Kennedy   ┆ LAX  ┆ Los Angeles     ┆ 11262     ┆ 8.522508      ┆ 9.829515        │\n",
+            "│        ┆ Intl             ┆      ┆ Intl            ┆           ┆               ┆                 │\n",
+            "│ LGA    ┆ La Guardia       ┆ ATL  ┆ Hartsfield      ┆ 10263     ┆ 11.448621     ┆ 12.247881       │\n",
+            "│        ┆                  ┆      ┆ Jackson Atlanta ┆           ┆               ┆                 │\n",
+            "│        ┆                  ┆      ┆ Int…            ┆           ┆               ┆                 │\n",
+            "│ LGA    ┆ La Guardia       ┆ ORD  ┆ Chicago Ohare   ┆ 8857      ┆ 10.740758     ┆ 13.345377       │\n",
+            "│        ┆                  ┆      ┆ Intl            ┆           ┆               ┆                 │\n",
+            "│ JFK    ┆ John F Kennedy   ┆ SFO  ┆ San Francisco   ┆ 8204      ┆ 11.952691     ┆ 12.116041       │\n",
+            "│        ┆ Intl             ┆      ┆ Intl            ┆           ┆               ┆                 │\n",
+            "│ LGA    ┆ La Guardia       ┆ CLT  ┆ Charlotte       ┆ 6168      ┆ 8.965321      ┆ 11.948768       │\n",
+            "│        ┆                  ┆      ┆ Douglas Intl    ┆           ┆               ┆                 │\n",
+            "│ EWR    ┆ Newark Liberty   ┆ ORD  ┆ Chicago Ohare   ┆ 6100      ┆ 14.644163     ┆ 16.0            │\n",
+            "│        ┆ Intl             ┆      ┆ Intl            ┆           ┆               ┆                 │\n",
+            "│ JFK    ┆ John F Kennedy   ┆ BOS  ┆ General Edward  ┆ 5898      ┆ 11.694953     ┆ 13.767379       │\n",
+            "│        ┆ Intl             ┆      ┆ Lawrence Logan  ┆           ┆               ┆                 │\n",
+            "│        ┆                  ┆      ┆ …               ┆           ┆               ┆                 │\n",
+            "│ LGA    ┆ La Guardia       ┆ MIA  ┆ Miami Intl      ┆ 5781      ┆ 7.361747      ┆ 9.462031        │\n",
+            "│ JFK    ┆ John F Kennedy   ┆ MCO  ┆ Orlando Intl    ┆ 5464      ┆ 10.601583     ┆ 12.719619       │\n",
+            "│        ┆ Intl             ┆      ┆                 ┆           ┆               ┆                 │\n",
+            "│ EWR    ┆ Newark Liberty   ┆ BOS  ┆ General Edward  ┆ 5327      ┆ 12.54561      ┆ 14.9052         │\n",
+            "│        ┆ Intl             ┆      ┆ Lawrence Logan  ┆           ┆               ┆                 │\n",
+            "│        ┆                  ┆      ┆ …               ┆           ┆               ┆                 │\n",
+            "└────────┴──────────────────┴──────┴─────────────────┴───────────┴───────────────┴─────────────────┘\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "polars_top_dest = (\n",
+        "    flights\n",
+        "    .group_by(\"dest\")\n",
+        "    .agg(pl.len().alias(\"n_flights\"))\n",
+        "    .sort(\"n_flights\", descending=True)\n",
+        "    .limit(10)\n",
+        ")\n",
+        "print(polars_top_dest)"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "FRx7-RpNDFfn",
+        "outputId": "62044cb6-37a0-4d89-a537-b2a6b31aea9e"
+      },
+      "execution_count": 23,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "shape: (10, 2)\n",
+            "┌──────┬───────────┐\n",
+            "│ dest ┆ n_flights │\n",
+            "│ ---  ┆ ---       │\n",
+            "│ str  ┆ u32       │\n",
+            "╞══════╪═══════════╡\n",
+            "│ ORD  ┆ 17283     │\n",
+            "│ ATL  ┆ 17215     │\n",
+            "│ LAX  ┆ 16174     │\n",
+            "│ BOS  ┆ 15508     │\n",
+            "│ MCO  ┆ 14082     │\n",
+            "│ CLT  ┆ 14064     │\n",
+            "│ SFO  ┆ 13331     │\n",
+            "│ FLL  ┆ 12055     │\n",
+            "│ MIA  ┆ 11728     │\n",
+            "│ DCA  ┆ 9705      │\n",
+            "└──────┴───────────┘\n"
+          ]
+        }
+      ]
+    }
+  ]
+}
